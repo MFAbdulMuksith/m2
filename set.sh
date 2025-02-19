@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# git clone REPO-URl
-# cd REPO
+# git clone URL
+# cd REPONAME
 # sudo chmod +x set.sh
-# Run this Script: ./set.sh
+# sudo ./set.sh
 
-Ensure script is run with sudo
+# Ensure script is run as root
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root or with sudo."
    exit 1
@@ -13,97 +13,73 @@ fi
 
 # Define base directory for configurations and data
 BASE_DIR="/opt/container"
-PROMETHEUS_DIR="$BASE_DIR/prometheus"
-ALERTMANAGER_DIR="$BASE_DIR/alertmanager"
-GRAFANA_DIR="$BASE_DIR/grafana"
-BLACKBOX_DIR="$BASE_DIR/blackbox"
-LOKI_DIR="$BASE_DIR/loki"
 PROMTAIL_DIR="$BASE_DIR/promtail"
 
 # Create necessary directories
 echo "Creating required directories..."
-mkdir -p $PROMETHEUS_DIR/data
-mkdir -p $ALERTMANAGER_DIR
-mkdir -p $GRAFANA_DIR/data
-mkdir -p $BLACKBOX_DIR
-mkdir -p $LOKI_DIR
-mkdir -p $PROMTAIL_DIR
+mkdir -p "$PROMTAIL_DIR"
 
-# Create placeholder config files if they do not exist
-# echo "Ensuring configuration files exist..."
+# Set proper permissions for base directory
+chmod -R 755 "$BASE_DIR"
 
-# touch $PROMETHEUS_DIR/prometheus.yml
-# touch $PROMETHEUS_DIR/alert.rules.yml
-# touch $ALERTMANAGER_DIR/alertmanager.yml
-# touch $BLACKBOX_DIR/config.yml
-# touch $LOKI_DIR/loki-config.yaml
-# touch $PROMTAIL_DIR/promtail-config.yaml
+# Function to copy files if they do not exist
+copy_if_not_exists() {
+    local src=$1
+    local dest=$2
+    if [[ ! -f "$dest" ]]; then
+        if [[ -f "$src" ]]; then
+            echo "Copying $src to $dest"
+            cp "$src" "$dest"
+        else
+            echo "Warning: Source file $src not found. Skipping."
+        fi
+    else
+        echo "Skipping $dest (already exists)."
+    fi
+}
 
-# Set proper permissions
-echo "Setting permissions..."
-chmod -R 755 $BASE_DIR
-# chown -R $(whoami):$(whoami) $BASE_DIR
+# Copy configuration files only if they don't already exist
+echo "Copying configuration files (if not already present)..."
 
-# Copy configuration files to the appropriate directories
-sudo cp -R ./prometheus/prometheus.yml /opt/container/prometheus/prometheus.yml
-sudo cp -R ./prometheus/alert.rules.yml /opt/container/prometheus/alert.rules.yml
-sudo cp -R ./alertmanager/alertmanager.yml /opt/container/alertmanager/alertmanager.yml
-sudo cp -R ./blackbox-exporter/config.yml /opt/container/blackbox/config.yml
-sudo cp -R ./loki/loki-config.yaml /opt/prometheus/loki/loki-config.yaml
-sudo cp -R ./promtail/promtail-config.yaml /opt/prometheus/promtail/promtail-config.yaml
-sudo cp -R ./promtail/positions.yaml /opt/prometheus/promtail/positions.yaml
+copy_if_not_exists ./promtail/promtail-config.yaml "$PROMTAIL_DIR/promtail-config.yaml"
+copy_if_not_exists ./promtail/positions.yaml "$PROMTAIL_DIR/positions.yaml"
 
-# Prometheus
-sudo chown root:root /opt/container/prometheus/prometheus.yml
-sudo chmod 644 /opt/container/prometheus/prometheus.yml
-sudo chown root:root /opt/container/prometheus/alert.rules.yml
-sudo chmod 644 /opt/container/prometheus/alert.rules.yml
-sudo mkdir -p /opt/container/prometheus/data
-sudo chown -R 65534:65534 /opt/container/prometheus/data
-sudo chmod -R 777 /opt/container/prometheus/data
+# Set permissions function
+set_permissions() {
+    local file=$1
+    local owner=$2
+    local mode=$3
+    if [[ -f "$file" ]]; then
+        echo "Setting permissions for $file"
+        chown "$owner" "$file"
+        chmod "$mode" "$file"
+    fi
+}
 
-# Grafana
-sudo mkdir -p /opt/container/grafana/data
-sudo chown -R 472:472 /opt/container/grafana/data
-sudo chmod -R 775 /opt/container/grafana/data
+# Apply permissions to configuration files
+set_permissions "$PROMTAIL_DIR/promtail-config.yaml" root:root 644
+set_permissions "$PROMTAIL_DIR/positions.yaml" root:root 644
 
-# Promtail
-sudo mkdir -p /opt/prometheus/promtail/promtail-positions
-sudo chown -R promtail:promtail /opt/prometheus/promtail/promtail-positions
-sudo chmod -R 775 /opt/prometheus/promtail/promtail-positions
-sudo chown root:root /opt/prometheus/promtail/promtail-config.yaml
-sudo chmod 644 /opt/prometheus/promtail/promtail-config.yaml
-sudo touch /opt/container/promtail/promtail-config.yaml
-sudo chmod 644 /opt/container/promtail/promtail-config.yaml
-sudo chown root:root /opt/container/promtail/promtail-config.yaml
-sudo chown -R promtail:promtail /opt/container/promtail
-sudo chmod -R 644 /opt/container/promtail/*
+# Set ownership and permissions for Promtail directory
+echo "Setting data directory permissions..."
+chown -R promtail:promtail "$PROMTAIL_DIR"
+chmod -R 755 "$PROMTAIL_DIR"
 
+# Ensure Docker network exists before running services
+if ! docker network inspect monitor >/dev/null 2>&1; then
+    echo "Creating 'monitor' Docker network..."
+    docker network create monitor
+fi
 
-
-# Loki
-sudo chown root:root /opt/prometheus/loki/loki-config.yaml
-sudo chmod 644 /opt/prometheus/loki/loki-config.yaml
-sudo mkdir -p /opt/prometheus/loki-data
-sudo chown -R 10001:10001 /opt/prometheus/loki-data
-sudo chmod -R 775 /opt/prometheus/loki-data
-sudo touch /opt/container/loki/loki-config.yaml
-sudo chmod 644 /opt/container/loki/loki-config.yaml
-sudo chown root:root /opt/container/loki/loki-config.yaml
-
-docker network create monitor
-
-# Ensure Docker network exists
-echo "Ensuring 'monitor' network exists..."
-docker network inspect monitor >/dev/null 2>&1 || docker network create monitor
+# Ensure Docker Compose is installed
+if ! command -v docker-compose &>/dev/null; then
+    echo "Error: docker-compose is not installed. Install it and try again."
+    exit 1
+fi
 
 # Start the monitoring stack
 echo "Starting Docker services..."
 docker-compose up -d
 
-echo "Monitoring Environment setup completed!"
-echo "Test access to the services:"
-echo "Prometheus: http://43.205.119.100:9090"
-echo "Grafana: http://43.205.119.100:3000"
-echo "Alertmanager: http://43.205.119.100:9093"
-echo "Traefik Dashboard: http://43.205.119.100:8050"
+# Final status
+echo "✅ Monitoring Environment setup completed!"

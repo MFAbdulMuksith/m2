@@ -166,6 +166,129 @@ Refer to the [Grafana Promtail Documentation](https://grafana.com/docs/loki/late
 
 ---
 
+# **Docker Installation and Configuration Guide**
+
+## **1. Install Docker Using the Convenience Script**
+Docker provides an official installation script that automates the installation process. This method is useful for quick installations but should be used with caution in production environments.
+
+### **Step 1: Download the Installation Script**
+```bash
+curl -fsSL https://get.docker.com -o install-docker.sh
+```
+- `curl -fsSL` fetches the script securely.
+- `-o install-docker.sh` saves it locally as `install-docker.sh`.
+
+### **Step 2: Make the Script Executable**
+```bash
+sudo chmod +x install-docker.sh
+```
+- `chmod +x` grants execution permissions to the script.
+
+### **Step 3: Perform a Dry Run (Optional)**
+```bash
+sh install-docker.sh --dry-run
+```
+- Runs a test installation without making changes.
+- Useful for verifying what actions will be performed.
+
+### **Step 4: Run the Installation Script**
+```bash
+sudo sh install-docker.sh
+```
+- Executes the script with root privileges to install Docker.
+
+---
+
+## **2. Verify Docker Installation**
+Once installed, confirm that Docker is running:
+
+```bash
+docker --version
+```
+- Displays the installed Docker version.
+
+```bash
+sudo systemctl status docker
+```
+- Checks if the Docker service is running.
+
+```bash
+sudo docker run hello-world
+```
+- Runs a test container to verify functionality.
+
+---
+
+## **3. Manage Docker as a Non-Root User**
+By default, Docker requires root privileges. To run it without `sudo`, follow these steps:
+
+### **Step 1: Create a Docker User Group**
+```bash
+sudo groupadd docker
+```
+- Creates a `docker` group if it does not already exist.
+
+### **Step 2: Add Your User to the Docker Group**
+```bash
+sudo usermod -aG docker $USER
+```
+- Adds the current user to the `docker` group.
+
+### **Step 3: Apply Group Changes**
+```bash
+newgrp docker
+```
+- Applies group membership changes without requiring a logout.
+
+### **Step 4: Verify Non-Root Access**
+```bash
+docker run hello-world
+```
+- If successful, Docker is accessible without `sudo`.
+
+---
+
+## **4. Fix Docker Permission Issues**
+If there are permission issues when accessing Docker, follow these steps:
+
+### **Step 1: Change Ownership of the `.docker` Directory**
+```bash
+sudo chown "$USER":"$USER" /home/"$USER"/.docker -R
+```
+- Assigns ownership of `.docker` to the current user.
+
+### **Step 2: Grant Group Permissions**
+```bash
+sudo chmod g+rwx "$HOME/.docker" -R
+```
+- Provides read, write, and execute permissions to the group.
+
+---
+
+## **5. Enable Docker to Start on Boot**
+Ensure Docker services start automatically after reboot:
+
+```bash
+sudo systemctl enable docker.service
+```
+- Enables the main Docker service.
+
+```bash
+sudo systemctl enable containerd.service
+```
+- Enables the `containerd` service, which manages container runtimes.
+
+---
+
+## **6. Test Docker Functionality**
+Run the following command to verify everything is working:
+```bash
+docker run hello-world
+```
+- If successful, you should see a message confirming that Docker is installed and running.
+
+---
+
 
 # To install Docker Compose on Ubuntu, follow these steps:
 
