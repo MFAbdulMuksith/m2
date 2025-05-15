@@ -1,0 +1,23 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://<LOKI_SERVER>:3100/loki/api/v1/push  # Replace with your Loki server IP
+
+# positions:
+#   filename: /etc/promtail/positions.yaml
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets:
+          - 43.205.119.100
+        labels:
+          job: server_logs
+          server: Prometheus  # Replace with the server's name
+          environment: MONITORING  # Example: tag by environment
+          __path__: /var/log/*.log     # Logs to be collected (you can change this path as needed)
