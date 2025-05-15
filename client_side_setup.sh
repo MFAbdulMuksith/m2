@@ -9,7 +9,7 @@ set -euo pipefail
 # =============================================
 
 # Configuration
-readonly BASE_DIR="/opt/monitoring"
+readonly BASE_DIR="/opt/client"
 readonly CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 readonly LOG_FILE="/var/log/client_monitoring_setup_${TIMESTAMP}.log"
